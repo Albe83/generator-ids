@@ -1,3 +1,5 @@
+package albe83.capabilities.utils;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
@@ -12,7 +14,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class UniqueIdGeneratorTest {
 
     private static final long TEST_EPOCH = 1672531200000L; // Epoch example: 2023-01-01T00:00:00Z
-    private static final int NODE_ID_BITS = 32; // Number of bits reserved for the node ID. This allows for 2^32 unique node identifiers, ensuring scalability in distributed systems.
+    private static final int NODE_ID_BITS = 32; // Number of bits reserved for the node ID (aligned with UniqueIdGenerator)
     private static final int NODE_ID_SHIFT = 48; // Bit shift to extract the node ID (adjusted for 32 bits)
     private static final int SEQUENCE_BITS = 16; // Bits allocated for the sequence number
     private static final int RANDOM_BITS = 16; // Bits allocated for the random number
@@ -27,18 +29,18 @@ class UniqueIdGeneratorTest {
         mockConfig = Mockito.mock(UniqueIdConfig.class);
 
         // Configure the mock to return a fixed node ID
-        Mockito.when(mockConfig.getNodeId()).thenReturn(1L);
+        Mockito.when(mockConfig.getNodeId()).thenReturn(Long.valueOf(1L)); // Use Long to match Mockito expectations
 
         // Configure the mock to return a specific epoch timestamp
-        Mockito.when(mockConfig.getEpoch()).thenReturn(TEST_EPOCH);
+        Mockito.when(mockConfig.getEpoch()).thenReturn(Long.valueOf(TEST_EPOCH)); // Use Long to match Mockito expectations
 
-        // Set a fixed clock for testing to ensure deterministic behavior
+        // Set a fixed clock for testing
         testClock = Clock.fixed(Instant.now(), Clock.systemDefaultZone().getZone());
 
         // Initialize the UniqueIdGenerator with the mocked configuration
         uniqueIdGenerator = new UniqueIdGenerator.Builder()
-                .setConfig(mockConfig) // Use the mocked configuration
-                .setTimestampProvider(() -> Instant.now(testClock).toEpochMilli()) // Provide a fixed timestamp for consistency
+                .setConfig(mockConfig)
+                .setTimestampProvider(() -> Instant.now(testClock).toEpochMilli())
                 .build();
     }
 
@@ -62,7 +64,7 @@ class UniqueIdGeneratorTest {
         Set<Long> uniqueIds = new HashSet<>();
 
         for (int i = 0; i < idCount; i++) {
-            uniqueIds.add(uniqueIdGenerator.generateId()); // Add each generated ID to the set. Note: HashSet ensures uniqueness but can be slower for large datasets. Consider using alternate data structures like concurrent hash maps for performance optimization in multithreaded environments.
+            uniqueIds.add(uniqueIdGenerator.generateId());
         }
 
         // Verify that the number of unique IDs matches the expected count
@@ -75,7 +77,7 @@ class UniqueIdGeneratorTest {
         long id = uniqueIdGenerator.generateId();
 
         // Extract the node ID from the generated ID using bit manipulation
-        long nodeId = extractNodeId(id); // The node ID is tested separately to ensure that it is correctly embedded in the ID, which is critical for distinguishing nodes in a distributed system.
+        long nodeId = extractNodeId(id);
 
         // Verify that the extracted node ID matches the expected value
         assertEquals(1L, nodeId, "Node ID should match the configured value");
@@ -90,8 +92,6 @@ class UniqueIdGeneratorTest {
         long timestamp = extractTimestamp(id);
 
         // Verify that the extracted timestamp is not in the future
-        // Note: Precise clock synchronization is assumed. If discrepancies occur due to clock drift or latency,
-        // the system should include mechanisms like clock synchronization (e.g., NTP) or error handling to adjust timestamps.
         assertTrue(timestamp <= Instant.now(testClock).toEpochMilli(), "Timestamp in ID should not be in the future");
     }
 
@@ -109,25 +109,18 @@ class UniqueIdGeneratorTest {
         assertTrue(randomPart >= 0 && randomPart < (1 << RANDOM_BITS), "Random part should be within valid range");
     }
 
-    // Helper method to extract the node ID from a generated ID
     private long extractNodeId(long id) {
         return (id >> NODE_ID_SHIFT) & ((1L << NODE_ID_BITS) - 1);
     }
 
-    // Helper method to extract the timestamp from a generated ID
     private long extractTimestamp(long id) {
-        // Shift right to remove the bits for node ID, sequence, and random values.
-        // This isolates the timestamp bits.
-        // Add the epoch to convert the relative timestamp back to an absolute timestamp.
         return (id >>> (NODE_ID_BITS + SEQUENCE_BITS + RANDOM_BITS)) + mockConfig.getEpoch();
     }
 
-    // Helper method to extract the sequence from a generated ID
     private long extractSequence(long id) {
         return (id >> RANDOM_BITS) & ((1 << SEQUENCE_BITS) - 1);
     }
 
-    // Helper method to extract the random part from a generated ID
     private long extractRandom(long id) {
         return id & ((1 << RANDOM_BITS) - 1);
     }
