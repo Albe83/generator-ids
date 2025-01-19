@@ -8,8 +8,8 @@
     <version>1.0-SNAPSHOT</version>
 
     <properties>
-        <maven.compiler.source>11</maven.compiler.source>
-        <maven.compiler.target>11</maven.compiler.target>
+        <maven.compiler.source>11</maven.compiler.source> <!-- Verify if Java 11 is the desired version, as newer versions might offer improved features or performance -->
+        <maven.compiler.target>11</maven.compiler.target> <!-- Define the Java target version -->
     </properties>
 
     <dependencies>
@@ -17,38 +17,38 @@
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>
-            <version>1.7.30</version>
+            <version>1.7.30</version> <!-- SLF4J API to abstract the logging implementation -->
         </dependency>
-        <!-- SLF4J Simple implementation for logging -->
+        <!-- Logback Classic for robust logging implementation -->
         <dependency>
-            <groupId>org.slf4j</groupId>
-            <artifactId>slf4j-simple</artifactId>
-            <version>1.7.30</version>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-classic</artifactId>
+            <version>1.2.3</version> <!-- More robust logging framework compared to SLF4J simple -->
         </dependency>
         <!-- Spring Framework for component annotation -->
         <dependency>
             <groupId>org.springframework</groupId>
             <artifactId>spring-context</artifactId>
-            <version>5.3.8</version>
+            <version>5.3.8</version> <!-- Provides Spring's dependency injection and context configuration -->
         </dependency>
         <!-- JUnit 5 for testing -->
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter-api</artifactId>
-            <version>5.7.0</version>
-            <scope>test</scope>
+            <version>5.7.0</version> <!-- API for writing JUnit 5 tests -->
+            <scope>test</scope> <!-- Test scope means this dependency is only required for testing -->
         </dependency>
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter-engine</artifactId>
-            <version>5.7.0</version>
+            <version>5.7.0</version> <!-- Ensure this matches the JUnit API version to avoid runtime issues -->
             <scope>test</scope>
         </dependency>
         <!-- Mockito for mocking in tests -->
         <dependency>
             <groupId>org.mockito</groupId>
             <artifactId>mockito-core</artifactId>
-            <version>3.6.28</version>
+            <version>3.6.28</version> <!-- Mockito library for mocking dependencies during tests -->
             <scope>test</scope>
         </dependency>
     </dependencies>
@@ -58,11 +58,20 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.8.1</version>
+                <version>3.8.1</version> <!-- Ensures compatibility with Java 11 -->
                 <configuration>
-                    <source>11</source>
-                    <target>11</target>
+                    <source>11</source> <!-- Java source version -->
+                    <target>11</target> <!-- Java target version -->
+                    <compilerArgs>
+                        <arg>-Xlint:all</arg> <!-- Enable all compiler warnings -->
+                        <arg>-Werror</arg> <!-- Treat warnings as errors -->
+                    </compilerArgs>
                 </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>3.0.0-M7</version> <!-- Plugin for running unit tests. Ensure compatibility with JUnit 5 to avoid configuration issues -->
             </plugin>
         </plugins>
     </build>
