@@ -29,7 +29,7 @@ class UniqueIdGeneratorTest {
         mockConfig = Mockito.mock(UniqueIdConfig.class);
 
         // Configure the mock to return a fixed node ID
-        Mockito.when(mockConfig.getNodeId()).thenReturn(Long.valueOf(1L)); // Use Long to match Mockito expectations
+        Mockito.when(mockConfig.getNodeId()).thenReturn(Integer.valueOf(1)); // Use Long to match Mockito expectations
 
         // Configure the mock to return a specific epoch timestamp
         Mockito.when(mockConfig.getEpoch()).thenReturn(Long.valueOf(TEST_EPOCH)); // Use Long to match Mockito expectations
