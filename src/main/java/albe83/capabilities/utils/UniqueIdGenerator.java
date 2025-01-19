@@ -4,6 +4,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
+import java.math.BigInteger;
 import java.security.SecureRandom;
 import java.time.Instant;
 import java.util.concurrent.atomic.AtomicLong;
@@ -53,7 +54,7 @@ public class UniqueIdGenerator {
                     }
                 }
             });
-            timeUpdater.setDaemon(true);
+            timeUpdater.setDaemon(true); // Ensure the thread does not block application shutdown
             timeUpdater.start();
         }
     }
@@ -67,8 +68,7 @@ public class UniqueIdGenerator {
      */
     private UniqueIdGenerator(UniqueIdConfig config, TimestampProvider timestampProvider, boolean generateRandomPerId) {
         if (config.getEpoch() > timestampProvider.getCurrentTimestamp()) {
-            logger.error("Invalid configuration: provided epoch ({}) is in the future compared to the current timestamp ({}). " +
-                         "This typically indicates a configuration or synchronization issue in the distributed system.",
+            logger.error("Invalid configuration: provided epoch ({}) is in the future compared to the current timestamp ({}).",
                          config.getEpoch(), timestampProvider.getCurrentTimestamp());
             throw new IllegalArgumentException("Epoch cannot be in the future. Ensure the epoch is correctly synchronized with the system clock.");
         }
@@ -88,56 +88,26 @@ public class UniqueIdGenerator {
         private boolean generateRandomPerId = false;
         private boolean enableCaching = true;
 
-        /**
-         * Sets the configuration for the generator.
-         *
-         * @param config The configuration object.
-         * @return This Builder instance.
-         */
         public Builder setConfig(UniqueIdConfig config) {
             this.config = config;
             return this;
         }
 
-        /**
-         * Sets the timestamp provider for the generator.
-         *
-         * @param timestampProvider The provider for timestamps.
-         * @return This Builder instance.
-         */
         public Builder setTimestampProvider(TimestampProvider timestampProvider) {
             this.timestampProvider = timestampProvider;
             return this;
         }
 
-        /**
-         * Configures whether a random value is generated for each ID.
-         *
-         * @param generateRandomPerId If true, generates a new random value for each ID.
-         * @return This Builder instance.
-         */
         public Builder setGenerateRandomPerId(boolean generateRandomPerId) {
             this.generateRandomPerId = generateRandomPerId;
             return this;
         }
 
-        /**
-         * Enables or disables caching for timestamp updates.
-         *
-         * @param enableCaching If true, caching will be enabled.
-         * @return This Builder instance.
-         */
         public Builder setEnableCaching(boolean enableCaching) {
             UniqueIdGenerator.enableCaching = enableCaching;
             return this;
         }
 
-        /**
-         * Builds the UniqueIdGenerator instance.
-         *
-         * @return A new UniqueIdGenerator instance.
-         * @throws IllegalStateException if the configuration is not set.
-         */
         public UniqueIdGenerator build() {
             if (config == null) {
                 throw new IllegalStateException("Config must be provided.");
@@ -147,11 +117,11 @@ public class UniqueIdGenerator {
     }
 
     /**
-     * Generates a 128-bit unique ID.
+     * Generates a 128-bit unique ID as a BigInteger.
      *
      * @return The generated unique ID.
      */
-    public long generateId() {
+    public BigInteger generateId() {
         long currentTimestamp = getCachedTimestamp();
 
         // Adjust the timestamp if the clock has moved backwards
@@ -181,8 +151,7 @@ public class UniqueIdGenerator {
      */
     private long adjustClockIfNeeded(long currentTimestamp) {
         if (currentTimestamp < lastTimestamp) {
-            logger.warn("Clock moved backwards on node {}. Adjusting timestamp from {} to {}. " +
-                    "Ensure the system clock is synchronized to prevent future issues.", 
+            logger.warn("Clock moved backwards on node {}. Adjusting timestamp from {} to {}.", 
                     nodeId, currentTimestamp, lastTimestamp + 1);
             return ++lastTimestamp;
         }
@@ -210,21 +179,18 @@ public class UniqueIdGenerator {
      * Constructs the 128-bit unique ID by combining timestamp, node ID, sequence, and random values.
      *
      * @param currentTimestamp The current timestamp.
-     * @return The constructed unique ID.
+     * @return The constructed unique ID as a BigInteger.
      */
-    private long constructId(long currentTimestamp) {
+    private BigInteger constructId(long currentTimestamp) {
         lastTimestamp = currentTimestamp;
         long randomPart = (constantRandom != -1) ? constantRandom : SECURE_RANDOM.nextInt(1 << randomBits);
 
-        // Explanation of bitwise operations:
-        // 1. The timestamp (64 bits) is shifted left to occupy the highest bits.
-        // 2. The node ID (32 bits) follows, shifted to make space for sequence and random bits.
-        // 3. The sequence (16 bits) is shifted to make space for the random bits.
-        // 4. The random part (16 bits) occupies the lowest bits.
-        return ((currentTimestamp - epoch) << (nodeIdBits + sequenceBits + randomBits)) |
-               ((long) nodeId << (sequenceBits + randomBits)) |
-               ((long) sequence << randomBits) |
-               randomPart;
+        // Combine all components into a single 128-bit value
+        return BigInteger.valueOf(currentTimestamp - epoch)
+                .shiftLeft(nodeIdBits + sequenceBits + randomBits) // Shift the timestamp to the highest bits
+                .or(BigInteger.valueOf(nodeId).shiftLeft(sequenceBits + randomBits)) // Add the node ID
+                .or(BigInteger.valueOf(sequence).shiftLeft(randomBits)) // Add the sequence
+                .or(BigInteger.valueOf(randomPart)); // Add the random part
     }
 
     /**
@@ -232,10 +198,6 @@ public class UniqueIdGenerator {
      *
      * @param currentTimestamp The current timestamp.
      * @return The updated timestamp after waiting.
-     *
-     * <p>Performance Note:</p>
-     * In high-throughput scenarios, this loop can introduce delays. Consider increasing the number of bits for the sequence
-     * or implementing sharding techniques to reduce contention on a single generator instance.
      */
     private long waitForNextMillis(long currentTimestamp) {
         while (currentTimestamp <= lastTimestamp) {
